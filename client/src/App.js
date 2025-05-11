@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 
 function App() {
+  const [uploadedData, setUploadedData] = useState([]);
   const [portfolio, setPortfolio] = useState([]);
 
   useEffect(() => {
@@ -31,6 +32,41 @@ function App() {
           ))}
         </tbody>
       </table>
+      {uploadedData.length > 0 && (
+  <div style={{ marginTop: '2rem' }}>
+    <h3>📃 Uploaded Portfolio Preview</h3>
+    <table border="1" cellPadding="10">
+      <thead>
+        <tr>
+          <th>Ticker</th>
+          <th>Shares</th>
+          <th>Price</th>
+          <th>Cost Basis</th>
+          <th>Market Value</th>
+          <th>Gain ($)</th>
+          <th>Gain (%)</th>
+          <th>Asset Class</th>
+          <th>Sector</th>
+        </tr>
+      </thead>
+      <tbody>
+        {uploadedData.map((row, index) => (
+          <tr key={index}>
+            <td>{row.ticker}</td>
+            <td>{row.shares}</td>
+            <td>${row.price}</td>
+            <td>${row.costBasis}</td>
+            <td>${row.marketValue}</td>
+            <td>${row.gainDollar}</td>
+            <td>{row.gainPercent}%</td>
+            <td>{row.assetClass}</td>
+            <td>{row.sector}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+)}
 
       // Form upload
       <form
@@ -46,9 +82,9 @@ function App() {
     })
       .then((res) => res.json())
       .then((data) => {
-        console.log('Upload Response:', data);
-        alert('✅ CSV uploaded and parsed. Check server logs.');
-      })
+      console.log('Upload Response:', data);
+      setUploadedData(data.data);  // Save to state
+})
       .catch((err) => {
         console.error('Upload failed:', err);
         alert('⚠️ Upload failed.');
