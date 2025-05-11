@@ -1,0 +1,26 @@
+name: 🚀 Auto Deploy to Self-Hosted Runner
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+
+    steps:
+      - name: 🔄 Pull latest code
+        run: |
+          cd ~/apps/stocky
+          git reset --hard
+          git pull origin main
+
+      - name: 🛠️ Build and restart stack
+        run: |
+          cd ~/apps/stocky
+          docker compose build --no-cache
+          docker compose up -d
+
+      - name: ✅ Complete
+        run: echo "Stocky deployment completed via runner at ~/apps/actions-runner"
