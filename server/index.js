@@ -22,7 +22,14 @@ app.get('/api/portfolio', (req, res) => {
   res.json(uploadedPortfolio);
 });
 });
-
+// Version check route
+app.get('/api/version', (req, res) => {
+  const versionInfo = {
+    version: 'v1.0.3',
+    deployedAt: new Date().toISOString()
+  };
+  res.json(versionInfo);
+});
 app.post('/api/upload', upload.single('file'), (req, res) => {
   const results = [];
 
