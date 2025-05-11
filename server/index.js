@@ -33,7 +33,6 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
   fs.createReadStream(req.file.path)
     .pipe(csv())
     .on('data', (row) => {
-      // Normalize Fidelity-style CSV fields
       results.push({
         ticker: row.symbol,
         shares: parseFloat(row.quantity),
@@ -48,7 +47,7 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
     })
     .on('end', () => {
       console.log('Parsed + Normalized CSV:', results);
-      fs.unlinkSync(req.file.path); // clean up uploaded temp file
+      fs.unlinkSync(req.file.path);
       res.json({ message: 'Upload successful', data: results });
     });
 });
