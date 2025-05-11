@@ -1,11 +1,13 @@
 const express = require('express');
 const cors = require('cors');
-const app = express();
 const multer = require('multer');
 const csv = require('csv-parser');
 const fs = require('fs');
-const upload = multer({ dest: 'uploads/' });
+
+const app = express();
 const PORT = 4000;
+
+const upload = multer({ dest: 'uploads/' });
 
 app.use(cors());
 app.use(express.json());
