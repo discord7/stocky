@@ -1,0 +1,36 @@
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.env
+
+# Logs
+logs
+*.log
+*.log.*
+
+# Docker
+*.pid
+*.seed
+*.tar
+*.gz
+*.zip
+docker-compose.override.yml
+docker-volume/
+pgdata/
+
+# Build output
+client/build/
+client/.env
+server/.env
+server/dist/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor folders
+.vscode/
+.idea/
+*.swp
