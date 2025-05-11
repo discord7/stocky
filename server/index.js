@@ -5,6 +5,7 @@ const csv = require('csv-parser');
 const fs = require('fs');
 
 const app = express();
+let uploadedPortfolio = [];  // 🧠 holds the last uploaded CSV
 const PORT = 4000;
 
 const upload = multer({ dest: 'uploads/' });
@@ -17,10 +18,9 @@ app.get('/', (req, res) => {
 });
 
 app.get('/api/portfolio', (req, res) => {
-  res.json([
-    { ticker: 'AAPL', shares: 50, avgPrice: 150 },
-    { ticker: 'VZ', shares: 100, avgPrice: 35 }
-  ]);
+  app.get('/api/portfolio', (req, res) => {
+  res.json(uploadedPortfolio);
+});
 });
 
 app.post('/api/upload', upload.single('file'), (req, res) => {
@@ -46,10 +46,11 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
       });
     })
     .on('end', () => {
-      console.log('Parsed + Normalized CSV:', results);
-      fs.unlinkSync(req.file.path);
-      res.json({ message: 'Upload successful', data: results });
-    });
+  console.log('Parsed + Normalized CSV:', results);
+  uploadedPortfolio = results; // ✅ Save it in memory
+  fs.unlinkSync(req.file.path);
+  res.json({ message: 'Upload successful', data: results });
+});
 });
 
 app.listen(PORT, () => {
