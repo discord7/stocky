@@ -17,6 +17,36 @@ app.get('/api/portfolio', (req, res) => {
   ]);
 });
 
+app.post('/api/upload', upload.single('file'), (req, res) => {
+  const results = [];
+
+  if (!req.file) {
+    return res.status(400).json({ error: 'No file uploaded' });
+  }
+
+  fs.createReadStream(req.file.path)
+    .pipe(csv())
+    .on('data', (row) => {
+      // Normalize Fidelity-style CSV fields
+      results.push({
+        ticker: row.symbol,
+        shares: parseFloat(row.quantity),
+        price: parseFloat(row.price),
+        costBasis: parseFloat(row.costBasis),
+        marketValue: parseFloat(row.marketValue),
+        gainDollar: parseFloat(row.gainLossDollar),
+        gainPercent: parseFloat(row.gainLossPercent),
+        assetClass: row.assetClass,
+        sector: row.sector
+      });
+    })
+    .on('end', () => {
+      console.log('Parsed + Normalized CSV:', results);
+      fs.unlinkSync(req.file.path); // clean up uploaded temp file
+      res.json({ message: 'Upload successful', data: results });
+    });
+});
+
 app.listen(PORT, () => {
   console.log(`✅ API running on port ${PORT}`);
 });
