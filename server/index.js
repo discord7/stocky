@@ -80,7 +80,7 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
          message: '✅ Upload saved to database',
          uploadId,
          count: results.length,
-         data: results  // ← add this line to send the parsed rows back
+         data: results  // ← add this line to send the parsed rows back -Kb
 });
       });
   } catch (err) {
