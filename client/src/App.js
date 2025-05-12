@@ -13,7 +13,11 @@ function App() {
     })
     .catch(err => console.error('API fetch failed:', err));
 }, []);
-
+const totalShares = portfolio.reduce((sum, row) => sum + parseFloat(row.shares || 0), 0);
+const totalMarketValue = portfolio.reduce(
+  (sum, row) => sum + (parseFloat(row.shares || 0) * parseFloat(row.avg_price || 0)),
+  0
+);
 return (
   <div style={{ padding: '2rem' }}>
     <h1>📈 Stocky Portfolio</h1>
@@ -45,6 +49,14 @@ return (
               </tr>
             ))}
           </tbody>
+          <tfoot>
+  <tr style={{ background: '#f9f9f9', fontWeight: 'bold' }}>
+    <td style={{ padding: '8px' }}>TOTAL</td>
+    <td style={{ padding: '8px', textAlign: 'right' }}>{totalShares.toLocaleString()}</td>
+    <td style={{ padding: '8px', textAlign: 'right' }}>${totalMarketValue.toFixed(2)}</td>
+    <td colSpan="3" />
+  </tr>
+</tfoot>
         </table>
       </div>
     )}
