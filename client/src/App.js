@@ -67,7 +67,7 @@ function App() {
     </table>
   </div>
 )}
-
+<form
   onSubmit={(e) => {
     e.preventDefault();
     const file = e.target.elements.csvFile.files[0];
