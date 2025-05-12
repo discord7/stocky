@@ -1,3 +1,13 @@
+const { Pool } = require('pg');
+
+const pool = new Pool({
+  user: 'kbuser',
+  host: 'db', // this is the Docker service name from docker-compose.yml
+  database: 'stocktracker',
+  password: 'supersecure',
+  port: 5432
+});
+
 const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
@@ -31,33 +41,52 @@ app.get('/api/version', (req, res) => {
   res.json(versionInfo);
 });
 app.post('/api/upload', upload.single('file'), (req, res) => {
+  const csv = require('csv-parser');
+const multer = require('multer');
+const fs = require('fs');
+const upload = multer({ dest: 'uploads/' });
+
+app.post('/api/upload', upload.single('file'), async (req, res) => {
+  const filePath = req.file.path;
+  const originalName = req.file.originalname;
   const results = [];
 
-  if (!req.file) {
-    return res.status(400).json({ error: 'No file uploaded' });
-  }
+  try {
+    // 1️⃣ Insert into uploads table
+    const uploadResult = await pool.query(
+      `INSERT INTO uploads (source_filename) VALUES ($1) RETURNING id`,
+      [originalName]
+    );
+    const uploadId = uploadResult.rows[0].id;
 
-  fs.createReadStream(req.file.path)
-    .pipe(csv())
-    .on('data', (row) => {
-      results.push({
-        ticker: row.symbol,
-        shares: parseFloat(row.quantity),
-        price: parseFloat(row.price),
-        costBasis: parseFloat(row.costBasis),
-        marketValue: parseFloat(row.marketValue),
-        gainDollar: parseFloat(row.gainLossDollar),
-        gainPercent: parseFloat(row.gainLossPercent),
-        assetClass: row.assetClass,
-        sector: row.sector
+    // 2️⃣ Parse CSV
+    fs.createReadStream(filePath)
+      .pipe(csv())
+      .on('data', (data) => {
+        results.push(data);
+      })
+      .on('end', async () => {
+        // 3️⃣ Insert each position
+        for (let row of results) {
+          const { Ticker, Shares, AvgPrice, Account } = row;
+
+          if (!Ticker || !Shares || !AvgPrice) continue;
+
+          await pool.query(
+            `INSERT INTO positions
+            (upload_id, ticker, shares, avg_price, account_type)
+            VALUES ($1, $2, $3, $4, $5)`,
+            [uploadId, Ticker.trim(), Shares, AvgPrice, Account || null]
+          );
+        }
+
+        fs.unlinkSync(filePath); // clean up uploaded file
+        res.json({ message: '✅ Upload saved to database', uploadId, count: results.length });
       });
-    })
-    .on('end', () => {
-  console.log('Parsed + Normalized CSV:', results);
-  uploadedPortfolio = results; // ✅ Save it in memory
-  fs.unlinkSync(req.file.path);
-  res.json({ message: 'Upload successful', data: results });
-});
+  } catch (err) {
+    console.error('❌ Upload error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 app.listen(PORT, () => {
