@@ -76,11 +76,12 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
 
         uploadedPortfolio = results; // save in memory too
         fs.unlinkSync(filePath);
-        res.json({
-          message: '✅ Upload saved to database',
-          uploadId,
-          count: results.length
-        });
+         res.json({
+         message: '✅ Upload saved to database',
+         uploadId,
+         count: results.length,
+         data: results  // ← add this line to send the parsed rows back
+});
       });
   } catch (err) {
     console.error('❌ Upload error:', err);
