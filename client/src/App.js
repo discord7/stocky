@@ -5,11 +5,14 @@ function App() {
   const [portfolio, setPortfolio] = useState([]);
 
   useEffect(() => {
-    fetch(process.env.REACT_APP_API_URL + '/api/portfolio')
-      .then((res) => res.json())
-      .then((data) => setPortfolio(data))
-      .catch((err) => console.error('API fetch failed:', err));
-  }, []);
+  fetch(`${process.env.REACT_APP_API_URL}/api/portfolio`)
+    .then(res => res.json())
+    .then(data => {
+      console.log('Portfolio data:', data);
+      setPortfolio(data.positions || []);
+    })
+    .catch(err => console.error('API fetch failed:', err));
+}, []);
 
   return (
     <div style={{ padding: '2rem' }}>

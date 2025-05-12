@@ -27,10 +27,36 @@ app.get('/', (req, res) => {
 });
 
 // ✅ Fixed portfolio endpoint
-app.get('/api/portfolio', (req, res) => {
-  res.json(uploadedPortfolio);
-});
+app.get('/api/portfolio', async (req, res) => {
+  try {
+    const latestUpload = await pool.query(`
+      SELECT id FROM uploads ORDER BY uploaded_at DESC LIMIT 1
+    `);
 
+    if (latestUpload.rows.length === 0) {
+      return res.status(404).json({ message: 'No uploads found' });
+    }
+
+    const uploadId = latestUpload.rows[0].id;
+
+    const positions = await pool.query(`
+      SELECT ticker, shares, avg_price, account_type, tag, notes
+      FROM positions
+      WHERE upload_id = $1
+      ORDER BY ticker
+    `, [uploadId]);
+
+    res.json({
+      uploadId,
+      count: positions.rows.length,
+      positions: positions.rows
+    });
+
+  } catch (err) {
+    console.error('❌ portfolio error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 // ✅ Version check route
 app.get('/api/version', (req, res) => {
   const versionInfo = {
