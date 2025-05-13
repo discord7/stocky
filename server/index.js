@@ -80,54 +80,59 @@ app.get('/api/version', (req, res) => {
 });
 
 // ✅ CSV Upload + DB insert route
-app.post('/api/upload', upload.single('file'), async (req, res) => {
+  app.post('/api/upload', upload.single('file'), (req, res) => {
   const filePath = req.file.path;
-  const originalName = req.file.originalname;
   const results = [];
 
-  try {
-    // 1️⃣ Insert metadata
-    const uploadResult = await pool.query(
-      `INSERT INTO uploads (source_filename) VALUES ($1) RETURNING id`,
-      [originalName]
-    );
-    const uploadId = uploadResult.rows[0].id;
+  fs.createReadStream(filePath)
+    .pipe(csv())
+    .on('data', (row) => {
+      const symbol = row['Symbol']?.trim();
+      const quantity = parseFloat(row['Quantity']?.replace(/,/g, '') || 0);
+      const avgCost = parseFloat(row['Average Cost Basis']?.replace(/[$,]/g, '') || 0);
+      const account = row['Account Name']?.trim();
+      const type = row['Type']?.trim();
 
-    // 2️⃣ Parse and collect CSV rows
-    fs.createReadStream(filePath)
-      .pipe(csv())
-      .on('data', (data) => {
-        results.push(data);
-      })
-      .on('end', async () => {
-        // 3️⃣ Insert each position row
-        for (let row of results) {
-          const { Ticker, Shares, AvgPrice, Account } = row;
-          if (!Ticker || !Shares || !AvgPrice) continue;
+      if (!symbol || isNaN(quantity)) return; // skip empty rows
 
-          await pool.query(
-            `INSERT INTO positions
-              (upload_id, ticker, shares, avg_price, account_type)
-              VALUES ($1, $2, $3, $4, $5)`,
-            [uploadId, Ticker.trim(), Shares, AvgPrice, Account || null]
-          );
-        }
+      const isCash = symbol.startsWith('CORE') || symbol.startsWith('FCASH');
 
-        uploadedPortfolio = results; // save in memory too
-        fs.unlinkSync(filePath);
-         res.json({
-         message: '✅ Upload saved to database',
-         uploadId,
-         count: results.length,
-         data: results  // ← add this line to send the parsed rows back -Kb
-});
+      results.push({
+        ticker: isCash ? 'CASH' : symbol.toUpperCase(),
+        shares: isCash ? parseFloat(row['Current Value']?.replace(/[$,]/g, '') || 0) : quantity,
+        avg_price: isCash ? 1 : avgCost,
+        account_type: account || null,
+        tag: isCash ? 'Cash' : null,
+        notes: row['Description']?.slice(0, 200) || null,
       });
-  } catch (err) {
-    console.error('❌ Upload error:', err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+    })
+    .on('end', async () => {
+      try {
+        const uploadRes = await pool.query(
+          `INSERT INTO uploads (source_filename) VALUES ($1) RETURNING id`,
+          [req.file.originalname]
+        );
+        const uploadId = uploadRes.rows[0].id;
 
+        const insertPromises = results.map((row) =>
+          pool.query(
+            `INSERT INTO positions
+            (upload_id, ticker, shares, avg_price, account_type, tag, notes)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            [uploadId, row.ticker, row.shares, row.avg_price, row.account_type, row.tag, row.notes]
+          )
+        );
+
+        await Promise.all(insertPromises);
+        res.json({ message: 'Upload processed', count: results.length, data: results });
+      } catch (err) {
+        console.error('❌ DB insert failed:', err);
+        res.status(500).json({ error: 'Internal error' });
+      } finally {
+        fs.unlinkSync(filePath);
+      }
+    });
+});
 app.listen(PORT, () => {
   console.log(`✅ API running on port ${PORT}`);
 });
