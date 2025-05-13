@@ -121,32 +121,40 @@ const insertPromises = results.map((row) =>
   fs.createReadStream(filePath)
     .pipe(csv())
     .on('data', (row) => {
-      const symbol = row['Symbol']?.trim();
-      const isCash = symbol.startsWith('CORE') || symbol.startsWith('FCASH');
-      const quantity = parseFloat(row['Quantity']?.replace(/,/g, '') || 0);
-      const avgCost = parseFloat(row['Average Cost Basis']?.replace(/[$,]/g, '') || 0);
-      const account = row['Account Name']?.trim();
-      const type = row['Type']?.trim();
+  const symbol = row['Symbol']?.trim();
+  const quantity = parseFloat(row['Quantity']?.replace(/,/g, '') || 0);
+  const avgCost = parseFloat(row['Average Cost Basis']?.replace(/[$,]/g, '') || 0);
+  const account = row['Account Name']?.trim();
 
-      if (!symbol || isNaN(quantity)) return; // skip empty rows
+  if (!symbol || isNaN(quantity)) return;
 
-      const isCash = symbol.startsWith('CORE') || symbol.startsWith('FCASH');
+  const isCash = symbol.startsWith('CORE') || symbol.startsWith('FCASH');
+  const parsedShares = isCash
+    ? parseFloat(row['Current Value']?.replace(/[$,]/g, '') || 0)
+    : quantity;
 
-      results.push({
-  ticker: isCash ? 'CASH' : symbol.toUpperCase(),
-  shares: parsedShares,
-  avg_price: parsedAvgPrice,
-  account_type: account || null,
-  tag: isCash ? 'Cash' : null,
-  notes: row['Description']?.slice(0, 200) || null,
-  cost_basis_total: costBasisTotal,
-  current_price: currentPrice,
-  market_value: marketValue,
-  gain_dollar: gainDollar,
-  gain_percent: gainPercent,
-  price_last_updated: new Date().toISOString()
-});
-    })
+  const parsedAvgPrice = isCash ? 1 : avgCost;
+  const costBasisTotal = parsedShares * parsedAvgPrice;
+  const currentPrice = parsedAvgPrice;
+  const marketValue = parsedShares * currentPrice;
+  const gainDollar = marketValue - costBasisTotal;
+  const gainPercent = costBasisTotal > 0 ? gainDollar / costBasisTotal : 0;
+
+  results.push({
+    ticker: isCash ? 'CASH' : symbol.toUpperCase(),
+    shares: parsedShares,
+    avg_price: parsedAvgPrice,
+    account_type: account || null,
+    tag: isCash ? 'Cash' : null,
+    notes: row['Description']?.slice(0, 200) || null,
+    cost_basis_total: costBasisTotal,
+    current_price: currentPrice,
+    market_value: marketValue,
+    gain_dollar: gainDollar,
+    gain_percent: gainPercent,
+    price_last_updated: new Date().toISOString()
+  });
+})
     .on('end', async () => {
       try {
         const uploadRes = await pool.query(
