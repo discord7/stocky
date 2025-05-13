@@ -60,16 +60,23 @@ return (
       <div style={{ marginTop: '2rem' }}>
         <h2>🗂️ Latest Uploaded Portfolio</h2>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ background: '#f2f2f2' }}>
-              <th style={{ textAlign: 'left', padding: '8px' }}>Ticker</th>
-              <th style={{ textAlign: 'right', padding: '8px' }}>Shares</th>
-              <th style={{ textAlign: 'right', padding: '8px' }}>Avg. Price</th>
-              <th style={{ textAlign: 'left', padding: '8px' }}>Account</th>
-              <th style={{ textAlign: 'left', padding: '8px' }}>Tag</th>
-              <th style={{ textAlign: 'left', padding: '8px' }}>Notes</th>
-            </tr>
-          </thead>
+          <tbody>
+          {portfolio.map((row, index) => (
+          <tr key={index} style={{ borderBottom: '1px solid #ddd' }}>
+            <td style={{ padding: '8px', fontWeight: 'bold' }}>{row.ticker}</td>
+      <td style={{ padding: '8px', textAlign: 'right' }}>{parseFloat(row.shares).toLocaleString()}</td>
+      <td style={{ padding: '8px', textAlign: 'right' }}>${parseFloat(row.avg_price).toFixed(2)}</td>
+      <td style={{ padding: '8px', textAlign: 'right' }}>${parseFloat(row.market_value || 0).toFixed(2)}</td>
+      <td style={{ padding: '8px', textAlign: 'right' }}>${parseFloat(row.gain_dollar || 0).toFixed(2)}</td>
+      <td style={{ padding: '8px', textAlign: 'right' }}>
+        {parseFloat(row.gain_percent || 0).toFixed(2)}%
+      </td>
+      <td style={{ padding: '8px' }}>{row.account_type || '-'}</td>
+      <td style={{ padding: '8px' }}>{row.tag || '-'}</td>
+      <td style={{ padding: '8px' }}>{row.notes || '-'}</td>
+    </tr>
+  ))}
+</tbody>
           <tbody>
             {portfolio.map((row, index) => (
               <tr key={index} style={{ borderBottom: '1px solid #ddd' }}>
