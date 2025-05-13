@@ -12,6 +12,7 @@ function App() {
     .then(res => res.json())
     .then(data => {
       setUploadHistory(data);
+      console.log('Uploads:', data);
       if (data.length > 0 && !selectedUploadId) {
         setSelectedUploadId(data[0].id); // default to latest
       }
