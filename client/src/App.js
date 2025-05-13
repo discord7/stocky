@@ -3,25 +3,57 @@ import React, { useEffect, useState } from 'react';
 function App() {
   const [uploadedData, setUploadedData] = useState([]);
   const [portfolio, setPortfolio] = useState([]);
-
+  const [uploadHistory, setUploadHistory] = useState([]);
+  const [selectedUploadId, setSelectedUploadId] = useState(null);
+  
   useEffect(() => {
-  fetch(`${process.env.REACT_APP_API_URL}/api/portfolio`)
+     // Load upload history
+  fetch(`${process.env.REACT_APP_API_URL}/api/uploads`)
+    .then(res => res.json())
+    .then(data => {
+      setUploadHistory(data);
+      if (data.length > 0 && !selectedUploadId) {
+        setSelectedUploadId(data[0].id); // default to latest
+      }
+    })
+    .catch(err => console.error('Upload history fetch failed:', err));
+}, []);
+  useEffect(() => {
+  if (!selectedUploadId) return;
+
+  fetch(`${process.env.REACT_APP_API_URL}/api/portfolio?uploadId=${selectedUploadId}`)
     .then(res => res.json())
     .then(data => {
       console.log('Portfolio data:', data);
       setPortfolio(data.positions || []);
     })
-    .catch(err => console.error('API fetch failed:', err));
-}, []);
-const totalShares = portfolio.reduce((sum, row) => sum + parseFloat(row.shares || 0), 0);
-const totalMarketValue = portfolio.reduce(
-  (sum, row) => sum + (parseFloat(row.shares || 0) * parseFloat(row.avg_price || 0)),
+    .catch(err => console.error('Portfolio fetch failed:', err));
+}, [selectedUploadId]);
+
+  const totalShares = portfolio.reduce((sum, row) => sum + parseFloat(row.shares || 0), 0);
+  const totalMarketValue = portfolio.reduce(
+    (sum, row) => sum + (parseFloat(row.shares || 0) * parseFloat(row.avg_price || 0)),
   0
 );
 return (
   <div style={{ padding: '2rem' }}>
     <h1>📈 Stocky Portfolio</h1>
-
+{uploadHistory.length > 0 && (
+  <div style={{ marginTop: '1rem' }}>
+    <label htmlFor="uploadSelect"><strong>📂 Select Upload:</strong>{' '}</label>
+    <select
+      id="uploadSelect"
+      value={selectedUploadId || ''}
+      onChange={(e) => setSelectedUploadId(e.target.value)}
+    >
+      {uploadHistory.map((upload) => (
+        <option key={upload.id} value={upload.id}>
+          {upload.uploaded_at.split('T')[0]} — {upload.source_filename}
+        </option>
+      ))}
+    </select>
+  </div>
+)}
     {/* --- Portfolio Table --- */}
     {portfolio.length > 0 && (
       <div style={{ marginTop: '2rem' }}>
