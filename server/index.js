@@ -57,6 +57,19 @@ app.get('/api/portfolio', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+app.get('/api/uploads', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT id, source_filename, uploaded_at
+      FROM uploads
+      ORDER BY uploaded_at DESC
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('❌ uploads fetch failed:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 // ✅ Version check route
 app.get('/api/version', (req, res) => {
   const versionInfo = {
