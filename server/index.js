@@ -19,16 +19,6 @@ const pool = new Pool({
   port: 5432
 });
 
-const parsedShares = isCash
-  ? parseFloat(row['Current Value']?.replace(/[$,]/g, '') || 0)
-  : quantity;
-
-const parsedAvgPrice = isCash ? 1 : avgCost;
-const costBasisTotal = parsedShares * parsedAvgPrice;
-const currentPrice = parsedAvgPrice; // placeholder
-const marketValue = parsedShares * currentPrice;
-const gainDollar = marketValue - costBasisTotal;
-const gainPercent = costBasisTotal > 0 ? gainDollar / costBasisTotal : 0;
 
 app.use(cors());
 app.use(express.json());
