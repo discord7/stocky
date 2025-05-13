@@ -18,6 +18,17 @@ const pool = new Pool({
   password: 'supersecure',
   port: 5432
 });
+const isCash = symbol.startsWith('CORE') || symbol.startsWith('FCASH');
+const parsedShares = isCash
+  ? parseFloat(row['Current Value']?.replace(/[$,]/g, '') || 0)
+  : quantity;
+
+const parsedAvgPrice = isCash ? 1 : avgCost;
+const costBasisTotal = parsedShares * parsedAvgPrice;
+const currentPrice = parsedAvgPrice; // placeholder
+const marketValue = parsedShares * currentPrice;
+const gainDollar = marketValue - costBasisTotal;
+const gainPercent = costBasisTotal > 0 ? gainDollar / costBasisTotal : 0;
 
 app.use(cors());
 app.use(express.json());
@@ -83,7 +94,30 @@ app.get('/api/version', (req, res) => {
   app.post('/api/upload', upload.single('file'), (req, res) => {
   const filePath = req.file.path;
   const results = [];
-
+const insertPromises = results.map((row) =>
+  pool.query(
+    `INSERT INTO positions
+    (upload_id, ticker, shares, avg_price, account_type, tag, notes,
+     cost_basis_total, current_price, market_value, gain_dollar, gain_percent, price_last_updated)
+    VALUES ($1, $2, $3, $4, $5, $6, $7,
+            $8, $9, $10, $11, $12, $13)`,
+    [
+      uploadId,
+      row.ticker,
+      row.shares,
+      row.avg_price,
+      row.account_type,
+      row.tag,
+      row.notes,
+      row.cost_basis_total,
+      row.current_price,
+      row.market_value,
+      row.gain_dollar,
+      row.gain_percent,
+      row.price_last_updated
+    ]
+  )
+);
   fs.createReadStream(filePath)
     .pipe(csv())
     .on('data', (row) => {
@@ -98,13 +132,19 @@ app.get('/api/version', (req, res) => {
       const isCash = symbol.startsWith('CORE') || symbol.startsWith('FCASH');
 
       results.push({
-        ticker: isCash ? 'CASH' : symbol.toUpperCase(),
-        shares: isCash ? parseFloat(row['Current Value']?.replace(/[$,]/g, '') || 0) : quantity,
-        avg_price: isCash ? 1 : avgCost,
-        account_type: account || null,
-        tag: isCash ? 'Cash' : null,
-        notes: row['Description']?.slice(0, 200) || null,
-      });
+  ticker: isCash ? 'CASH' : symbol.toUpperCase(),
+  shares: parsedShares,
+  avg_price: parsedAvgPrice,
+  account_type: account || null,
+  tag: isCash ? 'Cash' : null,
+  notes: row['Description']?.slice(0, 200) || null,
+  cost_basis_total: costBasisTotal,
+  current_price: currentPrice,
+  market_value: marketValue,
+  gain_dollar: gainDollar,
+  gain_percent: gainPercent,
+  price_last_updated: new Date().toISOString()
+});
     })
     .on('end', async () => {
       try {
