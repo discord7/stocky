@@ -56,51 +56,49 @@ return (
   </div>
 )}
     {/* --- Portfolio Table --- */}
-    {portfolio.length > 0 && (
-      <div style={{ marginTop: '2rem' }}>
-        <h2>🗂️ Latest Uploaded Portfolio</h2>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <tbody>
-          {portfolio.map((row, index) => (
+   {portfolio.length > 0 && (
+  <div style={{ marginTop: '2rem' }}>
+    <h2>🗂️ Latest Uploaded Portfolio</h2>
+    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+      <thead>
+        <tr style={{ background: '#f2f2f2' }}>
+          <th style={{ padding: '8px' }}>Ticker</th>
+          <th style={{ padding: '8px', textAlign: 'right' }}>Shares</th>
+          <th style={{ padding: '8px', textAlign: 'right' }}>Avg. Price</th>
+          <th style={{ padding: '8px', textAlign: 'right' }}>Market Value</th>
+          <th style={{ padding: '8px', textAlign: 'right' }}>Gain ($)</th>
+          <th style={{ padding: '8px', textAlign: 'right' }}>Gain (%)</th>
+          <th style={{ padding: '8px' }}>Account</th>
+          <th style={{ padding: '8px' }}>Tag</th>
+          <th style={{ padding: '8px' }}>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        {portfolio.map((row, index) => (
           <tr key={index} style={{ borderBottom: '1px solid #ddd' }}>
             <td style={{ padding: '8px', fontWeight: 'bold' }}>{row.ticker}</td>
-      <td style={{ padding: '8px', textAlign: 'right' }}>{parseFloat(row.shares).toLocaleString()}</td>
-      <td style={{ padding: '8px', textAlign: 'right' }}>${parseFloat(row.avg_price).toFixed(2)}</td>
-      <td style={{ padding: '8px', textAlign: 'right' }}>${parseFloat(row.market_value || 0).toFixed(2)}</td>
-      <td style={{ padding: '8px', textAlign: 'right' }}>${parseFloat(row.gain_dollar || 0).toFixed(2)}</td>
-      <td style={{ padding: '8px', textAlign: 'right' }}>
-        {parseFloat(row.gain_percent || 0).toFixed(2)}%
-      </td>
-      <td style={{ padding: '8px' }}>{row.account_type || '-'}</td>
-      <td style={{ padding: '8px' }}>{row.tag || '-'}</td>
-      <td style={{ padding: '8px' }}>{row.notes || '-'}</td>
-    </tr>
-  ))}
-</tbody>
-          <tbody>
-            {portfolio.map((row, index) => (
-              <tr key={index} style={{ borderBottom: '1px solid #ddd' }}>
-                <td style={{ padding: '8px', fontWeight: 'bold' }}>{row.ticker}</td>
-                <td style={{ padding: '8px', textAlign: 'right' }}>{parseFloat(row.shares).toLocaleString()}</td>
-                <td style={{ padding: '8px', textAlign: 'right' }}>${parseFloat(row.avg_price).toFixed(2)}</td>
-                <td style={{ padding: '8px' }}>{row.account_type || '-'}</td>
-                <td style={{ padding: '8px' }}>{row.tag || '-'}</td>
-                <td style={{ padding: '8px' }}>{row.notes || '-'}</td>
-              </tr>
-            ))}
-          </tbody>
-          <tfoot>
-  <tr style={{ background: '#f9f9f9', fontWeight: 'bold' }}>
-    <td style={{ padding: '8px' }}>TOTAL</td>
-    <td style={{ padding: '8px', textAlign: 'right' }}>{totalShares.toLocaleString()}</td>
-    <td style={{ padding: '8px', textAlign: 'right' }}>${totalMarketValue.toFixed(2)}</td>
-    <td colSpan="3" />
-  </tr>
-</tfoot>
-        </table>
-      </div>
-    )}
-
+            <td style={{ padding: '8px', textAlign: 'right' }}>{parseFloat(row.shares).toLocaleString()}</td>
+            <td style={{ padding: '8px', textAlign: 'right' }}>${parseFloat(row.avg_price).toFixed(2)}</td>
+            <td style={{ padding: '8px', textAlign: 'right' }}>${parseFloat(row.market_value || 0).toFixed(2)}</td>
+            <td style={{ padding: '8px', textAlign: 'right' }}>${parseFloat(row.gain_dollar || 0).toFixed(2)}</td>
+            <td style={{ padding: '8px', textAlign: 'right' }}>{parseFloat(row.gain_percent || 0).toFixed(2)}%</td>
+            <td style={{ padding: '8px' }}>{row.account_type || '-'}</td>
+            <td style={{ padding: '8px' }}>{row.tag || '-'}</td>
+            <td style={{ padding: '8px' }}>{row.notes || '-'}</td>
+          </tr>
+        ))}
+      </tbody>
+      <tfoot>
+        <tr style={{ background: '#f9f9f9', fontWeight: 'bold' }}>
+          <td style={{ padding: '8px' }}>TOTAL</td>
+          <td style={{ padding: '8px', textAlign: 'right' }}>{totalShares.toLocaleString()}</td>
+          <td style={{ padding: '8px', textAlign: 'right' }}>${totalMarketValue.toFixed(2)}</td>
+          <td colSpan="6" />
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+)}
     {/* --- Upload Form --- */}
     <form
       onSubmit={(e) => {
