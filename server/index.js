@@ -18,7 +18,7 @@ const pool = new Pool({
   password: 'supersecure',
   port: 5432
 });
-const isCash = symbol.startsWith('CORE') || symbol.startsWith('FCASH');
+
 const parsedShares = isCash
   ? parseFloat(row['Current Value']?.replace(/[$,]/g, '') || 0)
   : quantity;
@@ -122,6 +122,7 @@ const insertPromises = results.map((row) =>
     .pipe(csv())
     .on('data', (row) => {
       const symbol = row['Symbol']?.trim();
+      const isCash = symbol.startsWith('CORE') || symbol.startsWith('FCASH');
       const quantity = parseFloat(row['Quantity']?.replace(/,/g, '') || 0);
       const avgCost = parseFloat(row['Average Cost Basis']?.replace(/[$,]/g, '') || 0);
       const account = row['Account Name']?.trim();
