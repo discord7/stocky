@@ -131,29 +131,29 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
         const uploadId = uploadRes.rows[0].id;
 
         const insertPromises = results.map((row) =>
-          pool.query(
-            `INSERT INTO positions
-            (upload_id, ticker, shares, avg_price, account_type, tag, notes,
-             cost_basis_total, current_price, market_value, gain_dollar, gain_percent, price_last_updated)
-            VALUES ($1, $2, $3, $4, $5, $6, $7,
-                    $8, $9, $10, $11, $12, $13)`,
-            [
-              uploadId,
-              row.ticker,
-              row.shares,
-              row.avg_price,
-              row.account_type,
-              row.tag,
-              row.notes,
-              row.cost_basis_total,
-              row.current_price,
-              row.market_value,
-              row.gain_dollar,
-              row.gain_percent,
-              row.price_last_updated
-            ]
-          )
-        );
+  pool.query(
+    `INSERT INTO positions
+    (upload_id, ticker, shares, avg_price, account_type, tag, notes,
+     cost_basis_total, current_price, market_value, gain_dollar, gain_percent, price_last_updated)
+    VALUES ($1, $2, $3, $4, $5, $6, $7,
+            $8, $9, $10, $11, $12, $13)`,
+    [
+      uploadId,
+      row.ticker,
+      row.shares,
+      row.avg_price,
+      row.account_type,
+      row.tag,
+      row.notes,
+      row.cost_basis_total,
+      row.current_price,
+      row.market_value,
+      row.gain_dollar,
+      row.gain_percent,
+      row.price_last_updated
+    ]
+  )
+);
 
         await Promise.all(insertPromises);
         res.json({ message: 'Upload processed', count: results.length });
