@@ -28,6 +28,7 @@ const getYahooPrice = async (ticker) => {
     const price = data?.quoteResponse?.result?.[0]?.regularMarketPrice;
     if (price) {
       console.log(`💰 ${ticker} → $${price}`);
+      console.log(`🔎 Looking up ticker: "${ticker}"`);
       return price;
     } else {
       console.warn(`⚠️ No price found for ${ticker}`);
@@ -117,7 +118,7 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
 
   results.push({
     rawSymbol: symbol,
-    ticker: isCash ? 'CASH' : symbol.toUpperCase(),
+    ticker: isCash ? 'CASH' : symbol.toUpperCase().trim(),
     shares: parsedShares,
     avg_price: parsedAvgPrice,
     account_type: account || null,
