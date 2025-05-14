@@ -23,7 +23,7 @@ app.use(express.json());
 
 const getYahooPrice = async (ticker) => {
   try {
-    const res = await fetch(\`https://query1.finance.yahoo.com/v7/finance/quote?symbols=\${ticker}\`);
+    const res = await fetch(`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${ticker}`);
     const data = await res.json();
     const price = data?.quoteResponse?.result?.[0]?.regularMarketPrice;
     if (price) {
