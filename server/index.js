@@ -132,7 +132,7 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
         );
         const uploadId = uploadRes.rows[0].id;
 
-        // 🔁 Batch ticker list
+        // 🔁 Batch ticker list. 
         const tickers = [...new Set(results.filter(r => r.ticker !== 'CASH').map(r => {
           const mapped = tickerMap[r.ticker];
           return mapped !== undefined ? mapped : r.ticker;
