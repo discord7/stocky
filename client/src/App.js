@@ -114,7 +114,8 @@ return (
           .then((res) => res.json())
           .then((data) => {
             console.log('Upload Response:', data);
-            setUploadedData(data.data);  // Save to state
+            setUploadedData(data?.data || []);  // Save to state
+            console.log("✅ Upload result:", data);
           })
           .catch((err) => {
             console.error('Upload failed:', err);
