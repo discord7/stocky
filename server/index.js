@@ -3,6 +3,7 @@ const cors = require('cors');
 const multer = require('multer');
 const csv = require('csv-parser');
 const fs = require('fs');
+const fetch = require('node-fetch');
 const { Pool } = require('pg');
 
 const app = express();
@@ -20,24 +21,35 @@ const pool = new Pool({
 app.use(cors());
 app.use(express.json());
 
-app.get('/', (req, res) => {
-  res.send('📡 Stocky API is live!');
-});
+const getYahooPrice = async (ticker) => {
+  try {
+    const res = await fetch(\`https://query1.finance.yahoo.com/v7/finance/quote?symbols=\${ticker}\`);
+    const data = await res.json();
+    const price = data?.quoteResponse?.result?.[0]?.regularMarketPrice;
+    if (price) {
+      console.log(\`💰 \${ticker} → \$\${price}\`);
+      return price;
+    } else {
+      console.warn(\`⚠️ No price found for \${ticker}\`);
+      return null;
+    }
+  } catch (err) {
+    console.error(\`❌ Yahoo fetch failed for \${ticker}:\`, err.message);
+    return null;
+  }
+};
 
 app.get('/api/version', (req, res) => {
-  res.json({
-    version: 'v1.0.4',
-    deployedAt: new Date().toISOString()
-  });
+  res.json({ version: 'v1.1.0', deployedAt: new Date().toISOString() });
 });
 
 app.get('/api/uploads', async (req, res) => {
   try {
-    const result = await pool.query(`
+    const result = await pool.query(\`
       SELECT id, source_filename, uploaded_at
       FROM uploads
       ORDER BY uploaded_at DESC
-    `);
+    \`);
     res.json(result.rows);
   } catch (err) {
     console.error('❌ uploads fetch failed:', err);
@@ -47,29 +59,28 @@ app.get('/api/uploads', async (req, res) => {
 
 app.get('/api/portfolio', async (req, res) => {
   try {
-    const result = await pool.query(`
+    const result = await pool.query(\`
       SELECT id FROM uploads ORDER BY uploaded_at DESC LIMIT 1
-    `);
+    \`);
     if (result.rows.length === 0) {
       return res.status(404).json({ message: 'No uploads found' });
     }
 
     const uploadId = result.rows[0].id;
 
-    const positions = await pool.query(`
+    const positions = await pool.query(\`
       SELECT ticker, shares, avg_price, account_type, tag, notes,
              cost_basis_total, current_price, market_value, gain_dollar, gain_percent
       FROM positions
       WHERE upload_id = $1
       ORDER BY ticker
-    `, [uploadId]);
+    \`, [uploadId]);
 
     res.json({
       uploadId,
       count: positions.rows.length,
       positions: positions.rows
     });
-
   } catch (err) {
     console.error('❌ portfolio fetch failed:', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -98,12 +109,9 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
 
       const parsedAvgPrice = isCash ? 1 : avgCost;
       const costBasisTotal = parsedShares * parsedAvgPrice;
-      const currentPrice = parsedAvgPrice;
-      const marketValue = parsedShares * currentPrice;
-      const gainDollar = marketValue - costBasisTotal;
-      const gainPercent = costBasisTotal > 0 ? gainDollar / costBasisTotal : 0;
 
       results.push({
+        rawSymbol: symbol,
         ticker: isCash ? 'CASH' : symbol.toUpperCase(),
         shares: parsedShares,
         avg_price: parsedAvgPrice,
@@ -111,28 +119,45 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
         tag: isCash ? 'Cash' : null,
         notes: row['Description']?.slice(0, 200) || null,
         cost_basis_total: costBasisTotal,
-        current_price: currentPrice,
-        market_value: marketValue,
-        gain_dollar: gainDollar,
-        gain_percent: gainPercent,
+        current_price: null, // will be filled after Yahoo call
+        market_value: null,
+        gain_dollar: null,
+        gain_percent: null,
         price_last_updated: new Date().toISOString()
       });
     })
     .on('end', async () => {
       try {
         const uploadRes = await pool.query(
-          `INSERT INTO uploads (source_filename) VALUES ($1) RETURNING id`,
+          \`INSERT INTO uploads (source_filename) VALUES ($1) RETURNING id\`,
           [req.file.originalname]
         );
         const uploadId = uploadRes.rows[0].id;
 
+        // Fetch prices
+        for (const row of results) {
+          if (row.ticker === 'CASH') {
+            row.current_price = 1;
+          } else {
+            const livePrice = await getYahooPrice(row.ticker);
+            row.current_price = livePrice ?? row.avg_price;
+          }
+
+          row.market_value = row.shares * row.current_price;
+          row.gain_dollar = row.market_value - row.cost_basis_total;
+          row.gain_percent = row.cost_basis_total > 0
+            ? row.gain_dollar / row.cost_basis_total
+            : 0;
+        }
+
+        // Insert into DB
         const insertPromises = results.map((row) =>
           pool.query(
-            `INSERT INTO positions
+            \`INSERT INTO positions
             (upload_id, ticker, shares, avg_price, account_type, tag, notes,
              cost_basis_total, current_price, market_value, gain_dollar, gain_percent, price_last_updated)
             VALUES ($1, $2, $3, $4, $5, $6, $7,
-                    $8, $9, $10, $11, $12, $13)`,
+                    $8, $9, $10, $11, $12, $13)\`,
             [
               uploadId,
               row.ticker,
@@ -154,7 +179,7 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
         await Promise.all(insertPromises);
 
         res.json({
-          message: 'Upload processed',
+          message: 'Upload processed w/ live prices',
           count: results.length,
           data: results
         });
