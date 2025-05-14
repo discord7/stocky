@@ -5,9 +5,20 @@ function App() {
   const [portfolio, setPortfolio] = useState([]);
   const [uploadHistory, setUploadHistory] = useState([]);
   const [selectedUploadId, setSelectedUploadId] = useState(null);
-  
+  const fetchPortfolio = () => {
+  fetch(`${process.env.REACT_APP_API_URL}/api/portfolio`)
+    .then(res => res.json())
+    .then(data => {
+      console.log("📥 Portfolio data:", data);
+      setPortfolio(data.positions || []);
+    })
+    .catch(err => console.error("API fetch failed:", err));
+};
+
+
   useEffect(() => {
      // Load upload history
+    fetchPortfolio(); 
   fetch(`${process.env.REACT_APP_API_URL}/api/uploads`)
     .then(res => res.json())
     .then(data => {
