@@ -156,7 +156,7 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
 );
 
         await Promise.all(insertPromises);
-        res.json({ message: 'Upload processed', count: results.length data: results});
+        res.json({ message: 'Upload processed', count: results.length, data: results});
       } catch (err) {
         console.error('❌ DB insert failed:', err);
         res.status(500).json({ error: 'Internal error' });
