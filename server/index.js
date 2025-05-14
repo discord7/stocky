@@ -1,4 +1,16 @@
 const express = require('express');
+// Optional: Map tickers from Fidelity format to Yahoo-compatible
+const tickerMap = {
+  FDRXX: null,          // Money market sweep — no price
+  CORE: null,           // FDIC-insured sweep
+  FCASH: null,          // Cash placeholder
+  FDGFX: 'FDGFX',       // Fidelity Dividend Growth
+  IYH: 'IYH',           // iShares US Healthcare
+  BOTZ: 'BOTZ',
+  SPY: 'SPY',
+  VOO: 'VOO',
+  FXAIX: 'FXAIX'        // Example of another known fund
+};
 const cors = require('cors');
 const multer = require('multer');
 const csv = require('csv-parser');
@@ -23,12 +35,20 @@ app.use(express.json());
 
 const getYahooPrice = async (ticker) => {
   try {
-    const res = await fetch(`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${ticker}`);
+     const lookupTicker = tickerMap[ticker] !== undefined ? tickerMap[ticker] : ticker;
+     console.log(`🔁 Remapped ${ticker} → ${lookupTicker}`);
+
+if (!lookupTicker) {
+  console.warn(`⏭ Skipping Yahoo lookup for ${ticker}`);
+  return null;
+}
+const res = await fetch(`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${lookupTicker}`);
     const data = await res.json();
     const price = data?.quoteResponse?.result?.[0]?.regularMarketPrice;
     if (price) {
       console.log(`💰 ${ticker} → $${price}`);
       console.log(`🔎 Looking up ticker: "${ticker}"`);
+      console.log(`🌐 Fetching Yahoo for: https://query1.finance.yahoo.com/v7/finance/quote?symbols=${ticker}`);
       return price;
     } else {
       console.warn(`⚠️ No price found for ${ticker}`);
@@ -147,6 +167,9 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
           } else {
             const livePrice = await getYahooPrice(row.ticker);
             row.current_price = livePrice ?? row.avg_price;
+            if (!livePrice) {
+            console.warn(`⚠️ Fallback to avg_price for ${row.ticker}`);
+            
           }
 
           row.market_value = row.shares * row.current_price;
@@ -156,7 +179,7 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
             : 0;
             console.log(`💰 ${row.ticker} | Shares: ${row.shares} | Avg: ${row.avg_price} | Price: ${row.current_price} | CB: ${row.cost_basis_total} | MV: ${row.market_value} | Gain: ${row.gain_dollar} (${(row.gain_percent * 100).toFixed(2)}%)`);
         }
-
+      }
         // Insert into DB
         const insertPromises = results.map((row) =>
           pool.query(
