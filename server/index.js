@@ -27,14 +27,14 @@ const getYahooPrice = async (ticker) => {
     const data = await res.json();
     const price = data?.quoteResponse?.result?.[0]?.regularMarketPrice;
     if (price) {
-      console.log(\`💰 \${ticker} → \$\${price}\`);
+      console.log(`💰 ${ticker} → $${price}`);
       return price;
     } else {
-      console.warn(\`⚠️ No price found for \${ticker}\`);
+      console.warn(`⚠️ No price found for ${ticker}`);
       return null;
     }
   } catch (err) {
-    console.error(\`❌ Yahoo fetch failed for \${ticker}:\`, err.message);
+    console.error(`❌ Yahoo fetch failed for ${ticker}:`, err.message);
     return null;
   }
 };
