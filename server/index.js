@@ -25,11 +25,10 @@ app.get('/', (req, res) => {
 });
 
 app.get('/api/version', (req, res) => {
-  const versionInfo = {
-    version: 'v1.0.3',
+  res.json({
+    version: 'v1.0.4',
     deployedAt: new Date().toISOString()
-  };
-  res.json(versionInfo);
+  });
 });
 
 app.get('/api/uploads', async (req, res) => {
@@ -48,12 +47,9 @@ app.get('/api/uploads', async (req, res) => {
 
 app.get('/api/portfolio', async (req, res) => {
   try {
-    const requestedId = req.query.uploadId;
-    const uploadQuery = requestedId
-      ? { text: 'SELECT id FROM uploads WHERE id = $1', values: [requestedId] }
-      : { text: 'SELECT id FROM uploads ORDER BY uploaded_at DESC LIMIT 1' };
-
-    const result = await pool.query(uploadQuery);
+    const result = await pool.query(`
+      SELECT id FROM uploads ORDER BY uploaded_at DESC LIMIT 1
+    `);
     if (result.rows.length === 0) {
       return res.status(404).json({ message: 'No uploads found' });
     }
@@ -131,32 +127,37 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
         const uploadId = uploadRes.rows[0].id;
 
         const insertPromises = results.map((row) =>
-  pool.query(
-    `INSERT INTO positions
-    (upload_id, ticker, shares, avg_price, account_type, tag, notes,
-     cost_basis_total, current_price, market_value, gain_dollar, gain_percent, price_last_updated)
-    VALUES ($1, $2, $3, $4, $5, $6, $7,
-            $8, $9, $10, $11, $12, $13)`,
-    [
-      uploadId,
-      row.ticker,
-      row.shares,
-      row.avg_price,
-      row.account_type,
-      row.tag,
-      row.notes,
-      row.cost_basis_total,
-      row.current_price,
-      row.market_value,
-      row.gain_dollar,
-      row.gain_percent,
-      row.price_last_updated
-    ]
-  )
-);
+          pool.query(
+            `INSERT INTO positions
+            (upload_id, ticker, shares, avg_price, account_type, tag, notes,
+             cost_basis_total, current_price, market_value, gain_dollar, gain_percent, price_last_updated)
+            VALUES ($1, $2, $3, $4, $5, $6, $7,
+                    $8, $9, $10, $11, $12, $13)`,
+            [
+              uploadId,
+              row.ticker,
+              row.shares,
+              row.avg_price,
+              row.account_type,
+              row.tag,
+              row.notes,
+              row.cost_basis_total,
+              row.current_price,
+              row.market_value,
+              row.gain_dollar,
+              row.gain_percent,
+              row.price_last_updated
+            ]
+          )
+        );
 
         await Promise.all(insertPromises);
-        res.json({ message: 'Upload processed', count: results.length, data: results});
+
+        res.json({
+          message: 'Upload processed',
+          count: results.length,
+          data: results
+        });
       } catch (err) {
         console.error('❌ DB insert failed:', err);
         res.status(500).json({ error: 'Internal error' });
