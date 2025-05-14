@@ -1,16 +1,4 @@
 const express = require('express');
-// Optional: Map tickers from Fidelity format to Yahoo-compatible
-const tickerMap = {
-  FDRXX: null,          // Money market sweep — no price
-  CORE: null,           // FDIC-insured sweep
-  FCASH: null,          // Cash placeholder
-  FDGFX: 'FDGFX',       // Fidelity Dividend Growth
-  IYH: 'IYH',           // iShares US Healthcare
-  BOTZ: 'BOTZ',
-  SPY: 'SPY',
-  VOO: 'VOO',
-  FXAIX: 'FXAIX'        // Example of another known fund
-};
 const cors = require('cors');
 const multer = require('multer');
 const csv = require('csv-parser');
@@ -30,35 +18,21 @@ const pool = new Pool({
   port: 5432,
 });
 
+// Optional: Map tickers from Fidelity format to Yahoo-compatible
+const tickerMap = {
+  FDRXX: null,
+  CORE: null,
+  FCASH: null,
+  FDGFX: 'FDGFX',
+  IYH: 'IYH',
+  BOTZ: 'BOTZ',
+  SPY: 'SPY',
+  VOO: 'VOO',
+  FXAIX: 'FXAIX'
+};
+
 app.use(cors());
 app.use(express.json());
-
-const getYahooPrice = async (ticker) => {
-  try {
-     const lookupTicker = tickerMap[ticker] !== undefined ? tickerMap[ticker] : ticker;
-     console.log(`🔁 Remapped ${ticker} → ${lookupTicker}`);
-
-if (!lookupTicker) {
-  console.warn(`⏭ Skipping Yahoo lookup for ${ticker}`);
-  return null;
-}
-const res = await fetch(`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${lookupTicker}`);
-    const data = await res.json();
-    const price = data?.quoteResponse?.result?.[0]?.regularMarketPrice;
-    if (price) {
-      console.log(`💰 ${ticker} → $${price}`);
-      console.log(`🔎 Looking up ticker: "${ticker}"`);
-      console.log(`🌐 Fetching Yahoo for: https://query1.finance.yahoo.com/v7/finance/quote?symbols=${ticker}`);
-      return price;
-    } else {
-      console.warn(`⚠️ No price found for ${ticker}`);
-      return null;
-    }
-  } catch (err) {
-    console.error(`❌ Yahoo fetch failed for ${ticker}:`, err.message);
-    return null;
-  }
-};
 
 app.get('/api/version', (req, res) => {
   res.json({ version: 'v1.1.0', deployedAt: new Date().toISOString() });
@@ -88,7 +62,6 @@ app.get('/api/portfolio', async (req, res) => {
     }
 
     const uploadId = result.rows[0].id;
-
     const positions = await pool.query(`
       SELECT ticker, shares, avg_price, account_type, tag, notes,
              cost_basis_total, current_price, market_value, gain_dollar, gain_percent
@@ -115,43 +88,42 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
   fs.createReadStream(filePath)
     .pipe(csv())
     .on('data', (row) => {
-  const symbol = row['Symbol']?.trim();
-  const quantity = parseFloat(row['Quantity']?.replace(/,/g, '') || 0);
-  let avgCost = parseFloat(row['Average Cost Basis']?.replace(/[$,]/g, '') || 0);
-  const account = row['Account Name']?.trim();
-  const costBasisTotal = parseFloat(row['Cost Basis Total']?.replace(/[$,]/g, '') || 0);
+      const symbol = row['Symbol']?.trim();
+      const quantity = parseFloat(row['Quantity']?.replace(/,/g, '') || 0);
+      let avgCost = parseFloat(row['Average Cost Basis']?.replace(/[$,]/g, '') || 0);
+      const account = row['Account Name']?.trim();
+      const costBasisTotal = parseFloat(row['Cost Basis Total']?.replace(/[$,]/g, '') || 0);
 
-  if (!symbol || isNaN(quantity)) return;
+      if (!symbol || isNaN(quantity)) return;
 
-  const isCash = symbol.startsWith('CORE') || symbol.startsWith('FCASH');
+      const isCash = symbol.startsWith('CORE') || symbol.startsWith('FCASH');
 
-  const parsedShares = isCash
-    ? parseFloat(row['Current Value']?.replace(/[$,]/g, '') || 0)
-    : quantity;
+      const parsedShares = isCash
+        ? parseFloat(row['Current Value']?.replace(/[$,]/g, '') || 0)
+        : quantity;
 
-  // Prefer cost_basis_total if valid
-  if (costBasisTotal && parsedShares > 0) {
-    avgCost = costBasisTotal / parsedShares;
-  }
+      if (costBasisTotal && parsedShares > 0) {
+        avgCost = costBasisTotal / parsedShares;
+      }
 
-  const parsedAvgPrice = isCash ? 1 : avgCost;
+      const parsedAvgPrice = isCash ? 1 : avgCost;
 
-  results.push({
-    rawSymbol: symbol,
-    ticker: isCash ? 'CASH' : symbol.toUpperCase().trim(),
-    shares: parsedShares,
-    avg_price: parsedAvgPrice,
-    account_type: account || null,
-    tag: isCash ? 'Cash' : null,
-    notes: row['Description']?.slice(0, 200) || null,
-    cost_basis_total: parsedShares * parsedAvgPrice,
-    current_price: null,
-    market_value: null,
-    gain_dollar: null,
-    gain_percent: null,
-    price_last_updated: new Date().toISOString()
-  });
-})
+      results.push({
+        rawSymbol: symbol,
+        ticker: isCash ? 'CASH' : symbol.toUpperCase().trim(),
+        shares: parsedShares,
+        avg_price: parsedAvgPrice,
+        account_type: account || null,
+        tag: isCash ? 'Cash' : null,
+        notes: row['Description']?.slice(0, 200) || null,
+        cost_basis_total: parsedShares * parsedAvgPrice,
+        current_price: null,
+        market_value: null,
+        gain_dollar: null,
+        gain_percent: null,
+        price_last_updated: new Date().toISOString()
+      });
+    })
     .on('end', async () => {
       try {
         const uploadRes = await pool.query(
@@ -160,16 +132,33 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
         );
         const uploadId = uploadRes.rows[0].id;
 
-        // Fetch prices
+        // 🔁 Batch ticker list
+        const tickers = [...new Set(results.filter(r => r.ticker !== 'CASH').map(r => {
+          const mapped = tickerMap[r.ticker];
+          return mapped !== undefined ? mapped : r.ticker;
+        }))];
+
+        const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${tickers.join(',')}`;
+        console.log('🌐 Fetching:', url);
+
+        const resYahoo = await fetch(url);
+        const yahooData = await resYahoo.json();
+        const priceMap = {};
+        for (const item of yahooData.quoteResponse.result) {
+          priceMap[item.symbol.toUpperCase()] = item.regularMarketPrice;
+        }
+
+        // 🔄 Apply prices to rows
         for (const row of results) {
           if (row.ticker === 'CASH') {
             row.current_price = 1;
           } else {
-            const livePrice = await getYahooPrice(row.ticker);
+            const lookup = tickerMap[row.ticker] !== undefined ? tickerMap[row.ticker] : row.ticker;
+            const livePrice = priceMap[lookup?.toUpperCase()];
             row.current_price = livePrice ?? row.avg_price;
             if (!livePrice) {
-            console.warn(`⚠️ Fallback to avg_price for ${row.ticker}`);
-            
+              console.warn(`⚠️ Fallback to avg_price for ${row.ticker}`);
+            }
           }
 
           row.market_value = row.shares * row.current_price;
@@ -177,10 +166,11 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
           row.gain_percent = row.cost_basis_total > 0
             ? row.gain_dollar / row.cost_basis_total
             : 0;
-            console.log(`💰 ${row.ticker} | Shares: ${row.shares} | Avg: ${row.avg_price} | Price: ${row.current_price} | CB: ${row.cost_basis_total} | MV: ${row.market_value} | Gain: ${row.gain_dollar} (${(row.gain_percent * 100).toFixed(2)}%)`);
+
+          console.log(`💰 ${row.ticker} | Shares: ${row.shares} | Avg: ${row.avg_price} | Price: ${row.current_price} | CB: ${row.cost_basis_total} | MV: ${row.market_value} | Gain: ${row.gain_dollar} (${(row.gain_percent * 100).toFixed(2)}%)`);
         }
-      }
-        // Insert into DB
+
+        // ⬇ Insert all
         const insertPromises = results.map((row) =>
           pool.query(
             `INSERT INTO positions
