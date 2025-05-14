@@ -45,11 +45,11 @@ app.get('/api/version', (req, res) => {
 
 app.get('/api/uploads', async (req, res) => {
   try {
-    const result = await pool.query(\`
+    const result = await pool.query(`
       SELECT id, source_filename, uploaded_at
       FROM uploads
       ORDER BY uploaded_at DESC
-    \`);
+    `);
     res.json(result.rows);
   } catch (err) {
     console.error('❌ uploads fetch failed:', err);
@@ -59,22 +59,22 @@ app.get('/api/uploads', async (req, res) => {
 
 app.get('/api/portfolio', async (req, res) => {
   try {
-    const result = await pool.query(\`
+    const result = await pool.query(`
       SELECT id FROM uploads ORDER BY uploaded_at DESC LIMIT 1
-    \`);
+    `);
     if (result.rows.length === 0) {
       return res.status(404).json({ message: 'No uploads found' });
     }
 
     const uploadId = result.rows[0].id;
 
-    const positions = await pool.query(\`
+    const positions = await pool.query(`
       SELECT ticker, shares, avg_price, account_type, tag, notes,
              cost_basis_total, current_price, market_value, gain_dollar, gain_percent
       FROM positions
       WHERE upload_id = $1
       ORDER BY ticker
-    \`, [uploadId]);
+    `, [uploadId]);
 
     res.json({
       uploadId,
@@ -129,7 +129,7 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
     .on('end', async () => {
       try {
         const uploadRes = await pool.query(
-          \`INSERT INTO uploads (source_filename) VALUES ($1) RETURNING id\`,
+          `INSERT INTO uploads (source_filename) VALUES ($1) RETURNING id`,
           [req.file.originalname]
         );
         const uploadId = uploadRes.rows[0].id;
@@ -153,11 +153,11 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
         // Insert into DB
         const insertPromises = results.map((row) =>
           pool.query(
-            \`INSERT INTO positions
+            `INSERT INTO positions
             (upload_id, ticker, shares, avg_price, account_type, tag, notes,
              cost_basis_total, current_price, market_value, gain_dollar, gain_percent, price_last_updated)
             VALUES ($1, $2, $3, $4, $5, $6, $7,
-                    $8, $9, $10, $11, $12, $13)\`,
+                    $8, $9, $10, $11, $12, $13)`,
             [
               uploadId,
               row.ticker,
