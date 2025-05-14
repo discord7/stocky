@@ -143,11 +143,16 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
 
         const resYahoo = await fetch(url);
         const yahooData = await resYahoo.json();
-        const priceMap = {};
-        for (const item of yahooData.quoteResponse.result) {
-          priceMap[item.symbol.toUpperCase()] = item.regularMarketPrice;
-        }
 
+         if (!yahooData?.quoteResponse?.result) {
+         console.error('❌ Invalid response from Yahoo Finance:', yahooData);
+        return res.status(500).json({ error: 'Failed to fetch market data from Yahoo' });
+}
+
+const priceMap = {};
+for (const item of yahooData.quoteResponse.result) {
+  priceMap[item.symbol.toUpperCase()] = item.regularMarketPrice;
+}
         // 🔄 Apply prices to rows
         for (const row of results) {
           if (row.ticker === 'CASH') {
