@@ -94,38 +94,43 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
   fs.createReadStream(filePath)
     .pipe(csv())
     .on('data', (row) => {
-      const symbol = row['Symbol']?.trim();
-      const quantity = parseFloat(row['Quantity']?.replace(/,/g, '') || 0);
-      const avgCost = parseFloat(row['Average Cost Basis']?.replace(/[$,]/g, '') || 0);
-      const account = row['Account Name']?.trim();
+  const symbol = row['Symbol']?.trim();
+  const quantity = parseFloat(row['Quantity']?.replace(/,/g, '') || 0);
+  let avgCost = parseFloat(row['Average Cost Basis']?.replace(/[$,]/g, '') || 0);
+  const account = row['Account Name']?.trim();
+  const costBasisTotal = parseFloat(row['Cost Basis Total']?.replace(/[$,]/g, '') || 0);
 
-      if (!symbol || isNaN(quantity)) return;
+  if (!symbol || isNaN(quantity)) return;
 
-      const isCash = symbol.startsWith('CORE') || symbol.startsWith('FCASH');
+  const isCash = symbol.startsWith('CORE') || symbol.startsWith('FCASH');
 
-      const parsedShares = isCash
-        ? parseFloat(row['Current Value']?.replace(/[$,]/g, '') || 0)
-        : quantity;
+  const parsedShares = isCash
+    ? parseFloat(row['Current Value']?.replace(/[$,]/g, '') || 0)
+    : quantity;
 
-      const parsedAvgPrice = isCash ? 1 : avgCost;
-      const costBasisTotal = parsedShares * parsedAvgPrice;
+  // Prefer cost_basis_total if valid
+  if (costBasisTotal && parsedShares > 0) {
+    avgCost = costBasisTotal / parsedShares;
+  }
 
-      results.push({
-        rawSymbol: symbol,
-        ticker: isCash ? 'CASH' : symbol.toUpperCase(),
-        shares: parsedShares,
-        avg_price: parsedAvgPrice,
-        account_type: account || null,
-        tag: isCash ? 'Cash' : null,
-        notes: row['Description']?.slice(0, 200) || null,
-        cost_basis_total: costBasisTotal,
-        current_price: null, // will be filled after Yahoo call
-        market_value: null,
-        gain_dollar: null,
-        gain_percent: null,
-        price_last_updated: new Date().toISOString()
-      });
-    })
+  const parsedAvgPrice = isCash ? 1 : avgCost;
+
+  results.push({
+    rawSymbol: symbol,
+    ticker: isCash ? 'CASH' : symbol.toUpperCase(),
+    shares: parsedShares,
+    avg_price: parsedAvgPrice,
+    account_type: account || null,
+    tag: isCash ? 'Cash' : null,
+    notes: row['Description']?.slice(0, 200) || null,
+    cost_basis_total: parsedShares * parsedAvgPrice,
+    current_price: null,
+    market_value: null,
+    gain_dollar: null,
+    gain_percent: null,
+    price_last_updated: new Date().toISOString()
+  });
+})
     .on('end', async () => {
       try {
         const uploadRes = await pool.query(
@@ -148,6 +153,7 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
           row.gain_percent = row.cost_basis_total > 0
             ? row.gain_dollar / row.cost_basis_total
             : 0;
+            console.log(`💰 ${row.ticker} | Shares: ${row.shares} | Avg: ${row.avg_price} | Price: ${row.current_price} | CB: ${row.cost_basis_total} | MV: ${row.market_value} | Gain: ${row.gain_dollar} (${(row.gain_percent * 100).toFixed(2)}%)`);
         }
 
         // Insert into DB
